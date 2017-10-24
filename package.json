@@ -1,0 +1,17 @@
+{
+  "name": "simple-chat",
+  "version": "1.0.0",
+  "description": "A chat application",
+  "main": "index.js",
+  "dependencies": {
+    "angular": "1.5.8",
+    "express": "latest",
+    "socket.io": "latest",
+    "trumbowyg": "2.8.1"
+  },
+  "scripts": {
+    "start": "node index"
+  },
+  "author": "Daniel Jin",
+  "license": "MIT"
+}

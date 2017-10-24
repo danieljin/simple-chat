@@ -1,0 +1,215 @@
+<!doctype html>
+<html>
+<head>
+    <title>Simple Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script src="trumbowyg/trumbowyg.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular-sanitize.js"></script>
+    <link rel="stylesheet" href="trumbowyg/ui/trumbowyg.min.css">
+    <script>
+        $(() => {
+            $('#chatBox').trumbowyg({
+                btns: ['bold', 'italic', 'p', 'h1', 'h2', 'h3'],
+                semantic: false
+            });
+        });
+    </script>
+    <script>
+        const app = angular.module("simpleChat", ['ngSanitize']);
+
+        app.factory('socket', ($rootScope) => {
+            const socket = io.connect();
+
+            return {
+                on: (eventName, callback) => {
+                    socket.on(eventName, (data) => {
+                        $rootScope.$apply(() => {
+                            callback(data);
+                        });
+                    });
+                },
+                emit: (eventName, data, callback) => {
+                    socket.emit(eventName, data, () => {
+                        const args = arguments;
+                        $rootScope.$apply(() => {
+                            if (callback) {
+                                callback.apply(socket, args);
+                            }
+                        });
+                    });
+                }
+            };
+        });
+
+        app.controller('chatController', ['$scope', 'socket', ($scope, socket) => {
+            $scope.self = {
+                username: ''
+            };
+            $scope.users = [];
+            $scope.messages = [];
+            $scope.showErrorMessage = false;
+            $scope.showUsernameForm = true;
+
+            socket.on('users', (users) => {
+                $scope.users = users;
+            });
+
+            socket.on('bad username', () => {
+                $scope.showErrorMessage = true;
+            });
+
+            socket.on('connected', (username) => {
+                $scope.showUsernameForm = false;
+                $scope.users.push(username);
+                $scope.messages.push('You have joined the chat.');
+            });
+
+            socket.on('user left', (username) => {
+                $scope.users = $scope.users.filter(user => user !== username);
+                $scope.messages.push(`${username} has left the chat.`);
+            });
+
+            socket.on('user joined', (username) => {
+                $scope.users.push(username);
+                $scope.messages.push(`${username} has joined the chat.`);
+            });
+
+            socket.on('message', (message) => {
+                $scope.messages.push(`${message.username}: ${message.message}`);
+            });
+
+            $scope.resetError = () => {
+                $scope.showErrorMessage = false
+            };
+
+            $scope.submitUsername = () => {
+                if ($scope.self.username) {
+                    socket.emit('set username', $('#username').val());
+                }
+            };
+
+            $scope.sendMessage = (message) => {
+                // needed to grab value from #chatBox directly
+                // due to WYSIWYG oddities.
+                $scope.messages.push(`${$scope.self.username}: ${$('#chatBox').val()}`);
+                socket.emit('message', $('#chatBox').val());
+                $('#chatBox').trumbowyg('empty');
+            };
+        }]);
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font: 13px Helvetica, Arial;
+        }
+
+        #messageForm {
+            background: #000;
+            padding: 3px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 50%;
+            overflow: auto;
+        }
+
+        #messageForm #sendButton {
+            width: 9%;
+            background: rgb(130, 224, 255);
+            border: none;
+            padding: 10px;
+        }
+
+        #messages {
+            list-style-type: none;
+            margin: 0 200px 0 0;
+            padding: 0;
+            height: 50%;
+        }
+
+        #messages li {
+            padding: 5px 10px;
+        }
+
+        #messages li:nth-child(odd) {
+            background: #eee;
+        }
+
+        #usernameForm {
+            background: rgba(0, 0, 0, 0.8);
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: 1;
+        }
+
+        #usernameForm input {
+            display: block;
+            margin: 300px auto 0;
+            padding: 10px;
+            width: 50%;
+        }
+
+        #usernameForm #errorMessage {
+            margin: 0 auto;
+            padding: 10px;
+            width: 50%;
+            color: red;
+        }
+
+        #usernameForm button {
+            display: block;
+            margin: 20px auto;
+            padding: 13px;
+            width: 50%;
+        }
+
+        #userList {
+            list-style-type: none;
+            position: fixed;
+            width: 200px;
+            height: 50%;
+            border-left: 2px black solid;
+            right: 0;
+            overflow: auto;
+        }
+
+        #userList li {
+            padding: 5px 10px;
+        }
+
+        #userList li:nth-child(odd) {
+            background: #eee;
+        }
+
+        .trumbowyg-box {
+            background: white;
+        }
+    </style>
+</head>
+<body ng-app="simpleChat" ng-controller="chatController">
+    <form ng-if="showUsernameForm" id="usernameForm" ng-submit="submitUsername()">
+        <input id="username" placeholder="Enter your username." autocomplete="off" ng-model="self.username"
+               ng-change="resetError()"/>
+        <div ng-if="showErrorMessage" id="errorMessage">The username {{self.username}} is already in use.</div>
+        <button>Submit</button>
+    </form>
+    <ul id="userList">
+        <li ng-repeat="user in users">{{user}}</li>
+    </ul>
+    <ul id="messages">
+        <li ng-repeat="message in messages track by $index" ng-bind-html="message"></li>
+    </ul>
+    <div id="messageForm">
+        <textarea id="chatBox"></textarea>
+        <button id="sendButton" ng-click="sendMessage()">Send</button>
+    </div>
+</body>
+</html>
