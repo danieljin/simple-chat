@@ -4,9 +4,8 @@
   "description": "A chat application",
   "main": "index.js",
   "dependencies": {
-    "angular": "1.5.8",
-    "express": "latest",
-    "socket.io": "latest",
+    "express": "4.16.2",
+    "socket.io": "2.0.4",
     "trumbowyg": "2.8.1"
   },
   "scripts": {

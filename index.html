@@ -43,7 +43,7 @@
             };
         });
 
-        app.controller('chatController', ['$scope', 'socket', ($scope, socket) => {
+        app.controller('chatController', ['$scope', 'socket', '$timeout', ($scope, socket, $timeout) => {
             $scope.self = {
                 username: ''
             };
@@ -90,13 +90,22 @@
                 }
             };
 
-            $scope.sendMessage = (message) => {
+            $scope.sendMessage = () => {
                 // needed to grab value from #chatBox directly
                 // due to WYSIWYG oddities.
-                $scope.messages.push(`${$scope.self.username}: ${$('#chatBox').val()}`);
-                socket.emit('message', $('#chatBox').val());
-                $('#chatBox').trumbowyg('empty');
+                const message = $('#chatBox').val();
+                if (message) {
+                    $scope.messages.push(`${$scope.self.username}: ${message}`);
+                    socket.emit('message', message);
+                    $('#chatBox').trumbowyg('empty');
+                }
             };
+
+            $scope.$watch('messages.length', () => {
+                $timeout(() => {
+                    $('#messages').scrollTop($('#messages')[0].scrollHeight);
+                });
+            });
         }]);
     </script>
     <style>
@@ -117,7 +126,6 @@
             bottom: 0;
             width: 100%;
             height: 50%;
-            overflow: auto;
         }
 
         #messageForm #sendButton {
@@ -132,6 +140,9 @@
             margin: 0 200px 0 0;
             padding: 0;
             height: 50%;
+            width: 70%;
+            overflow: auto;
+            position: fixed;
         }
 
         #messages li {
@@ -174,7 +185,7 @@
         #userList {
             list-style-type: none;
             position: fixed;
-            width: 200px;
+            width: 30%;
             height: 50%;
             border-left: 2px black solid;
             right: 0;
